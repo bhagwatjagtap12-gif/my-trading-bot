@@ -5,9 +5,10 @@ import requests
 import time
 from datetime import datetime
 
-# --- 1. CONFIGURATION ---
-BOT_TOKEN = "8648160911:AAHidzCyvcksTRAiPEvb0kNVonYRQCYjR3s" 
-CHAT_ID = "977055722"
+# --- 1. CONFIGURATION (SAFE SECRETS FALLBACK) ---
+# अगर एडवांस सेटिंग्स में सीक्रेट्स न भी मिलें, तो भी बोट इन डिफ़ॉल्ट वैल्यूज से चल जाएगा
+BOT_TOKEN = st.secrets.get("TELEGRAM_BOT_TOKEN", "8648160911:AAHidzCyvcksTRAiPEvb0kNVonYRQCYjR3s")
+CHAT_ID = st.secrets.get("TELEGRAM_CHAT_ID", "977055722")
 
 if "alert_memory" not in st.session_state:
     st.session_state.alert_memory = {}
@@ -17,7 +18,8 @@ if "logged_in" not in st.session_state:
     st.session_state.logged_in = False
 
 def check_login(username, password):
-    if username == "admin" and password == "trade2026":
+    # स्ट्रिक्ट स्मॉल लेटर्स और स्पेस हटाने के लिए .strip() का इस्तेमाल किया है
+    if username.strip() == "admin" and password.strip() == "trade2026":
         st.session_state.logged_in = True
         st.success("🔓 Login Successful!")
         st.rerun()
@@ -40,22 +42,16 @@ if not st.session_state.logged_in:
     st.stop()
 
 # --- 3. DYNAMIC WATCHLIST (NIFTY 200 AUTO-FETCH) ---
-@st.cache_data(ttl=86400) # रोज़ केवल एक बार डाउनलोड करेगा ताकि ऐप स्लो न हो
+@st.cache_data(ttl=86400)
 def get_nifty_200_watchlist():
     try:
-        # NSE India की ऑफिशियल Nifty 200 लिस्ट का URL
         url = "https://archives.nseindia.com/content/indices/ind_nifty200list.csv"
         df_nse = pd.read_csv(url)
-        
-        # Yahoo Finance के फॉर्मेट में बदलने के लिए पीछे '.NS' जोड़ना
         tickers = [f"{sym}.NS" for sym in df_nse['Symbol'].tolist()]
         return tickers
     except Exception as e:
-        # अगर कभी इंटरनेट या NSE की वेबसाइट डाउन हो, तो ये बैकअप लिस्ट काम आएगी
-        st.error(f"NSE से लिस्ट लोड नहीं हो पाई, बैकअप लिस्ट यूज़ कर रहे हैं। Error: {e}")
         return ["RELIANCE.NS", "TCS.NS", "HDFCBANK.NS", "INFY.NS", "ICICIBANK.NS"]
 
-# लाइव 200 स्टॉक्स की लिस्ट जनरेट करें
 nifty_watchlist = get_nifty_200_watchlist()
 
 # --- MAIN APP UI ---
@@ -183,14 +179,14 @@ if auto_mode:
                                     "Stock": ticker_clean, "Type": target['type'], "Level": target['price'], "LTP": round(curr_p, 2), "RSI": round(curr_rsi,1), "Volume": f"{vol_status} (NEW)"
                                 })
             except Exception as e:
-                continue # बैकग्राउंड एरर को इग्नोर करके अगला स्टॉक स्कैन करेगा
+                continue
         
         with placeholder.container():
             st.write(f"### 🕒 Last Scan completed at: {curr_time}")
             if found_alerts:
                 st.table(pd.DataFrame(found_alerts))
             else:
-                st.info("Scanning all Nifty 200 stocks... No strong high-volume setups at the moment.")
+                st.info("Scanning all Nifty 200 stocks...")
         
         for _ in range(900):
             time.sleep(1)
