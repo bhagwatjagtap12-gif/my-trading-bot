@@ -145,21 +145,4 @@ if auto_mode:
                                 
                                 if memory_key in st.session_state.alert_memory:
                                     found_alerts.append({
-                                        "Stock": ticker_clean, "Type": target['type'], "Level": target['price'], "LTP": round(curr_p, 2), "RSI": round(curr_rsi,1), "Volume": "Sent"
-                                    })
-                                    continue
-                                
-                                st.session_state.alert_memory[memory_key] = True
-                                
-                                msg = (
-                                    f"🚨 *DIY INSTITUTIONAL ALERT: {ticker_clean}*\n\n"
-                                    f"🔹 *Type:* {target['type']}\n"
-                                    f"🎯 *Zone Level:* ₹{target['price']}\n"
-                                    f"💰 *Live Price (LTP):* ₹{curr_p:.2f}\n"
-                                    f"📈 *30-Min RSI:* {curr_rsi:.1f}\n"
-                                    f"⏰ *India Time (IST):* {curr_time}"
-                                )
-                                
-                                send_telegram_alert(msg)
-                                
-                                found
+                                        "Stock": ticker_clean, "Type": target['type'], "Level": target['price'], "LTP": round(curr_p, 2), "RSI": round(curr_rsi,1),
