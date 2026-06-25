@@ -93,11 +93,10 @@ if auto_mode:
                 zones = get_diy_zones(df, pivot_len, pivot_len)
                 
                 if zones:
-                    target = next((z for z in reversed(zones) if z['type'] in ['DIY_SUPPLY', 'DIY_DEMAND']), None)
-                    if target:
+                    for target in zones:
                         if (abs(curr_p - target['price']) / target['price']) * 100 <= proximity:
                             ticker_clean = ticker.replace(".NS", "")
-                            m_key = f"{ticker_clean}_{target['type']}_{today_date}"
+                            m_key = f"{ticker_clean}_{target['type']}_{today_date}_{target['price']}"
                             
                             if m_key in st.session_state.alert_memory:
                                 found_alerts.append({"Stock": ticker_clean, "Type": target['type'], "Level": target['price'], "LTP": round(curr_p, 2), "Status": "Sent"})
@@ -112,6 +111,8 @@ if auto_mode:
         
         with placeholder.container():
             st.write(f"### 🕒 Last Scan completed at (IST): {curr_time}")
-            if found_alerts: st.table(pd.DataFrame(found_alerts))
-            else: st.info("Scanning all Nifty 200 stocks...")
+            if found_alerts: 
+                st.table(pd.DataFrame(found_alerts))
+            else: 
+                st.info("Scanning all Nifty 200 stocks...")
         time.sleep(15)
