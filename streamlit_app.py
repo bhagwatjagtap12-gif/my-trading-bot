@@ -7,8 +7,7 @@ from datetime import datetime
 
 # --- 1. CONFIGURATION (SAFE SECRETS FALLBACK) ---
 BOT_TOKEN = "8648160911:AAHidzCyvcksTRAiPEvb0kNVonYRQCYjR3s"
-   CHAT_ID = "977055722"
-
+CHAT_ID = "977055722"
 if "alert_memory" not in st.session_state:
     st.session_state.alert_memory = {}
 
