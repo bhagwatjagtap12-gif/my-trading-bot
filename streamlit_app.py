@@ -4,8 +4,9 @@ import pandas as pd
 import requests
 import time
 from datetime import datetime
+import pytz
 
-# --- 1. DIRECT CREDENTIALS (NO SECRETS HARDCODED) ---
+# --- 1. DIRECT CREDENTIALS ---
 BOT_TOKEN = "8648160911:AAHidzCyvcksTRAiPEvb0kNVonYRQCYjR3s"
 CHAT_ID = "977055722"
 
@@ -57,10 +58,9 @@ if st.sidebar.button("🔒 Log Out"):
 st.title("🏹 DIY Institutional Grade Alert Bot")
 st.subheader(f"📊 Tracking Total Stocks: {len(nifty_watchlist)} (Nifty 200)")
 
-# --- SUPER SIMPLIFIED TELEGRAM FUNCTION ---
+# --- TELEGRAM FUNCTION ---
 def send_telegram_alert(msg):
     try:
-        # बिना किसी एडवांस कीबोर्ड के सीधा और सबसे फ़ास्ट मैसेज भेजने का तरीक़ा
         api_url = f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage"
         payload = {"chat_id": CHAT_ID, "text": msg, "parse_mode": "Markdown"}
         requests.post(api_url, data=payload, timeout=10)
@@ -102,15 +102,14 @@ if auto_mode:
     st.success("Bot is LIVE! Scanning 200 Stocks...")
     placeholder = st.empty()
     
-    # जैसे ही बटन ऑन हो, तुरंत एक टेस्ट मैसेज भेजें ताकि पता चले कनेक्शन लाइव है
     send_telegram_alert("🚀 *DIY Bot Master Scan Started Successfully! Tracking Nifty 200...*")
     
-   while auto_mode:
-        import pytz
+    while auto_mode:
         ist = pytz.timezone('Asia/Kolkata')
         curr_time = datetime.now(ist).strftime("%H:%M:%S")
         today_date = datetime.now(ist).strftime("%Y-%m-%d")
         found_alerts = []
+        
         for ticker in nifty_watchlist:
             try:
                 df = yf.download(ticker, period="15d", interval="30m", auto_adjust=True, progress=False)
@@ -158,22 +157,9 @@ if auto_mode:
                                     f"🎯 *Zone Level:* ₹{target['price']}\n"
                                     f"💰 *Live Price (LTP):* ₹{curr_p:.2f}\n"
                                     f"📈 *30-Min RSI:* {curr_rsi:.1f}\n"
-                                    f"⏰ *Server Time:* {curr_time}"
+                                    f"⏰ *India Time (IST):* {curr_time}"
                                 )
                                 
                                 send_telegram_alert(msg)
                                 
-                                found_alerts.append({
-                                    "Stock": ticker_clean, "Type": target['type'], "Level": target['price'], "LTP": round(curr_p, 2), "RSI": round(curr_rsi,1), "Volume": "NEW ALERT"
-                                })
-            except:
-                continue
-        
-        with placeholder.container():
-            st.write(f"### 🕒 Last Scan completed at (Server Time): {curr_time}")
-            if found_alerts:
-                st.table(pd.DataFrame(found_alerts))
-            else:
-                st.info("Scanning all Nifty 200 stocks...")
-        
-        time.sleep(15)
+                                found
