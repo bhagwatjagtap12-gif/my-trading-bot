@@ -6,8 +6,8 @@ import time
 from datetime import datetime
 
 # --- 1. CONFIGURATION (SAFE SECRETS FALLBACK) ---
-BOT_TOKEN = st.secrets.get("TELEGRAM_BOT_TOKEN", "8648160911:AAHidzCyvcksTRAiPEvb0kNVonYRQCYjR3s")
-CHAT_ID = st.secrets.get("TELEGRAM_CHAT_ID", "977055722")
+BOT_TOKEN = "8648160911:AAHidzCyvcksTRAiPEvb0kNVonYRQCYjR3s"
+   CHAT_ID = "977055722"
 
 if "alert_memory" not in st.session_state:
     st.session_state.alert_memory = {}
