@@ -106,9 +106,12 @@ if auto_mode:
     send_telegram_alert("🚀 *DIY Bot Master Scan Started Successfully! Tracking Nifty 200...*")
     
     while auto_mode:
-        curr_time = datetime.now().strftime("%H:%M:%S")
-        today_date = datetime.now().strftime("%Y-%m-%d")
-        found_alerts = []
+      # भारत का टाइम ज़ोन (IST) सेट करने के लिए
+import pytset_tz if 'pytz' not in locals() else None
+import pytz
+ist = pytz.timezone('Asia/Kolkata')
+curr_time = datetime.now(ist).strftime("%H:%M:%S")
+today_date = datetime.now(ist).strftime("%Y-%m-%d")
         
         for ticker in nifty_watchlist:
             try:
