@@ -6,20 +6,17 @@ import time
 from datetime import datetime
 
 # --- 1. CONFIGURATION (SAFE SECRETS FALLBACK) ---
-# अगर एडवांस सेटिंग्स में सीक्रेट्स न भी मिलें, तो भी बोट इन डिफ़ॉल्ट वैल्यूज से चल जाएगा
 BOT_TOKEN = st.secrets.get("TELEGRAM_BOT_TOKEN", "8648160911:AAHidzCyvcksTRAiPEvb0kNVonYRQCYjR3s")
 CHAT_ID = st.secrets.get("TELEGRAM_CHAT_ID", "977055722")
 
 if "alert_memory" not in st.session_state:
     st.session_state.alert_memory = {}
 
-# --- 2. LOGIN SYSTEM LOGIC ---
 if "logged_in" not in st.session_state:
     st.session_state.logged_in = False
 
 def check_login(username, password):
-    # स्ट्रिक्ट स्मॉल लेटर्स और स्पेस हटाने के लिए .strip() का इस्तेमाल किया है
-    if username.strip() == "admin" and password.strip() == "trade2026":
+    if username.strip() == "admin" and password.strip() == "bullrun2026":
         st.session_state.logged_in = True
         st.success("🔓 Login Successful!")
         st.rerun()
@@ -38,10 +35,9 @@ if not st.session_state.logged_in:
         
         if submit_button:
             check_login(user_input, pass_input)
-            
     st.stop()
 
-# --- 3. DYNAMIC WATCHLIST (NIFTY 200 AUTO-FETCH) ---
+# --- 3. WATCHLIST FETCH ---
 @st.cache_data(ttl=86400)
 def get_nifty_200_watchlist():
     try:
@@ -49,12 +45,11 @@ def get_nifty_200_watchlist():
         df_nse = pd.read_csv(url)
         tickers = [f"{sym}.NS" for sym in df_nse['Symbol'].tolist()]
         return tickers
-    except Exception as e:
+    except:
         return ["RELIANCE.NS", "TCS.NS", "HDFCBANK.NS", "INFY.NS", "ICICIBANK.NS"]
 
 nifty_watchlist = get_nifty_200_watchlist()
 
-# --- MAIN APP UI ---
 st.set_page_config(page_title="DIY Institutional Bot", layout="wide")
 
 if st.sidebar.button("🔒 Log Out"):
@@ -69,17 +64,15 @@ def send_telegram_with_button(msg, ticker_clean):
         url = f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage"
         tv_url = f"https://in.tradingview.com/chart/?symbol=NSE:{ticker_clean}"
         inline_keyboard = {"inline_keyboard": [[{"text": "📊 Open TradingView Chart", "url": tv_url}]]}
-        
         params = {
             "chat_id": CHAT_ID, 
             "text": msg, 
             "parse_mode": "Markdown",
             "reply_markup": __import__('json').dumps(inline_keyboard)
         }
-        r = requests.post(url, json=params)
-        return r.json()
-    except Exception as e:
-        return str(e)
+        requests.post(url, json=params)
+    except:
+        pass
 
 def calculate_rsi(df, period=14):
     delta = df['Close'].diff()
@@ -94,26 +87,24 @@ def get_diy_zones(df, left=10, right=10):
     levels = []
     if len(df) < (left + right + 1): return []
     for i in range(left, len(df) - right):
-        if all(df['High'].iloc[i] >= df['High'].iloc[i-j] for j in range(1, left+1)) and \
-           all(df['High'].iloc[i] >= df['High'].iloc[i+j] for j in range(1, right+1)):
-            levels.append({'type': 'DIY_SUPPLY', 'price': round(float(df['High'].iloc[i]), 2)})
-        if all(df['Low'].iloc[i] <= df['Low'].iloc[i-j] for j in range(1, left+1)) and \
-           all(df['Low'].iloc[i] <= df['Low'].iloc[i+j] for j in range(1, right+1)):
-            levels.append({'type': 'DIY_DEMAND', 'price': round(float(df['Low'].iloc[i]), 2)})
+        if list(df['High'])[i] == max(list(df['High'])[i-left:i+right+1]):
+            levels.append({'type': 'DIY_SUPPLY', 'price': round(float(list(df['High'])[i]), 2)})
+        if list(df['Low'])[i] == min(list(df['Low'])[i-left:i+right+1]):
+            levels.append({'type': 'DIY_DEMAND', 'price': round(float(list(df['Low'])[i]), 2)})
     return levels
 
 auto_mode = st.sidebar.checkbox("🚀 START MASTER SCAN")
 pivot_len = st.sidebar.slider("DIY Strength (Left/Right)", 5, 20, 10)
-proximity = st.sidebar.slider("Alert Proximity %", 0.01, 1.0, 0.10)
-vol_multiplier = st.sidebar.slider("Volume Multiplier (X)", 1.0, 3.0, 1.5, step=0.1)
-rsi_filter_on = st.sidebar.checkbox("🔥 Enable RSI Exhaustion Filter (30/70)", value=True)
+proximity = st.sidebar.slider("Alert Proximity %", 0.01, 5.0, 1.00, step=0.05)
+vol_multiplier = st.sidebar.slider("Volume Multiplier (X)", 1.0, 3.0, 1.0, step=0.1)
+rsi_filter_on = st.sidebar.checkbox("🔥 Enable RSI Exhaustion Filter (30/70)", value=False)
 
 if st.sidebar.button("Clear Alert History"):
     st.session_state.alert_memory = {}
     st.sidebar.success("Memory Cleared!")
 
 if auto_mode:
-    st.success(f"Bot is LIVE! Scanning {len(nifty_watchlist)} Stocks in background...")
+    st.success("Bot is LIVE! Scanning 200 Stocks...")
     placeholder = st.empty()
     
     while auto_mode:
@@ -123,18 +114,19 @@ if auto_mode:
         
         for ticker in nifty_watchlist:
             try:
-                df = yf.download(ticker, period="20d", interval="30m", auto_adjust=True, progress=False)
-                if df.empty or len(df) < 30: continue
-                    
+                df = yf.download(ticker, period="15d", interval="30m", auto_adjust=True, progress=False)
+                if df.empty or len(df) < 25: continue
+                
                 if isinstance(df.columns, pd.MultiIndex): 
                     df.columns = df.columns.get_level_values(0)
                 
-                df['RSI'] = calculate_rsi(df, period=14)
+                # लाइव प्राइस और लाइव वॉल्यूम सीधा फैच करें
+                curr_p = float(df['Close'].iloc[-1])
+                curr_v = float(df['Volume'].iloc[-1])
                 
-                curr_p = float(df['Close'].iloc[-2])
-                curr_v = float(df['Volume'].iloc[-2])
-                curr_rsi = float(df['RSI'].iloc[-2]) if not pd.isna(df['RSI'].iloc[-2]) else 50
-                avg_volume = float(df['Volume'].iloc[-22:-2].mean())
+                df['RSI'] = calculate_rsi(df, period=14)
+                curr_rsi = float(df['RSI'].iloc[-1]) if not pd.isna(df['RSI'].iloc[-1]) else 50
+                avg_volume = float(df['Volume'].iloc[-20:-1].mean())
                 
                 zones = get_diy_zones(df, pivot_len, pivot_len)
                 
@@ -144,7 +136,7 @@ if auto_mode:
                     
                     for target in [l_sup, l_dem]:
                         if target:
-                            dist = abs(curr_p - target['price']) / target['price'] * 100
+                            dist = (abs(curr_p - target['price']) / target['price']) * 100
                             
                             if dist <= proximity and curr_v >= (avg_volume * vol_multiplier):
                                 if rsi_filter_on:
@@ -152,12 +144,11 @@ if auto_mode:
                                     if target['type'] == 'DIY_DEMAND' and curr_rsi > 35: continue
                                 
                                 ticker_clean = ticker.replace(".NS", "")
-                                vol_status = f"{curr_v/avg_volume:.1f}x Spike"
-                                
                                 memory_key = f"{ticker_clean}_{target['type']}_{today_date}"
+                                
                                 if memory_key in st.session_state.alert_memory:
                                     found_alerts.append({
-                                        "Stock": ticker_clean, "Type": target['type'], "Level": target['price'], "LTP": round(curr_p, 2), "RSI": round(curr_rsi,1), "Volume": f"{vol_status} (Sent)"
+                                        "Stock": ticker_clean, "Type": target['type'], "Level": target['price'], "LTP": round(curr_p, 2), "RSI": round(curr_rsi,1), "Volume": "Sent"
                                     })
                                     continue
                                 
@@ -167,29 +158,24 @@ if auto_mode:
                                     f"🚨 *DIY INSTITUTIONAL ALERT: {ticker_clean}*\n\n"
                                     f"🔹 *Type:* {target['type']}\n"
                                     f"🎯 *Zone Level:* ₹{target['price']}\n"
-                                    f"💰 *Confirmed Close:* ₹{curr_p:.2f}\n"
-                                    f"🔥 *Volume Surge:* {vol_status}\n"
-                                    f"📈 *30-Min RSI:* {curr_rsi:.1f} {'⚠️ EXHAUSTION' if (curr_rsi>65 or curr_rsi<35) else ''}\n"
-                                    f"⏰ *Time:* {curr_time}"
+                                    f"💰 *Live Price (LTP):* ₹{curr_p:.2f}\n"
+                                    f"📈 *30-Min RSI:* {curr_rsi:.1f}\n"
+                                    f"⏰ *Server Time:* {curr_time}"
                                 )
                                 
                                 send_telegram_with_button(msg, ticker_clean)
                                 
                                 found_alerts.append({
-                                    "Stock": ticker_clean, "Type": target['type'], "Level": target['price'], "LTP": round(curr_p, 2), "RSI": round(curr_rsi,1), "Volume": f"{vol_status} (NEW)"
+                                    "Stock": ticker_clean, "Type": target['type'], "Level": target['price'], "LTP": round(curr_p, 2), "RSI": round(curr_rsi,1), "Volume": "NEW ALERT"
                                 })
-            except Exception as e:
+            except:
                 continue
         
         with placeholder.container():
-            st.write(f"### 🕒 Last Scan completed at: {curr_time}")
+            st.write(f"### 🕒 Last Scan completed at (Server Time): {curr_time}")
             if found_alerts:
                 st.table(pd.DataFrame(found_alerts))
             else:
                 st.info("Scanning all Nifty 200 stocks...")
         
-        for _ in range(900):
-            time.sleep(1)
-            if not auto_mode: break
-else:
-    st.info("Sidebar से 'START MASTER SCAN' ऑन करें।")
+        time.sleep(30)
